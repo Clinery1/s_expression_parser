@@ -20,7 +20,7 @@ fn test_ident() {
     let contents=r##"an_identifier another_one"##;
     let (obj,len)=Object::from_str(contents).unwrap();
     assert!(len==13);
-    assert_eq!(obj,Object::String("an_identifier".to_string()));
+    assert_eq!(obj,Object::Ident("an_identifier"));
 }
 #[test]
 fn test_list1() {
@@ -28,8 +28,8 @@ fn test_list1() {
     let (obj,len)=Object::from_str(contents).unwrap();
     assert!(len==contents.len());
     assert_eq!(obj,Object::List(vec![
-        Object::String("hello".to_string()),
-        Object::String("world".to_string()),
+        Object::Ident("hello"),
+        Object::Ident("world"),
     ]));
 }
 #[test]
@@ -38,7 +38,7 @@ fn test_list2() {
     let (obj,len)=Object::from_str(contents).unwrap();
     assert!(len==contents.len());
     assert_eq!(obj,Object::List(vec![
-        Object::String("print".to_string()),
+        Object::Ident("print"),
         Object::String("Hello, world!".to_string()),
         Object::Number("1234"),
     ]));
@@ -49,15 +49,15 @@ fn test_list3() {
     let (obj,len)=Object::from_str(contents).unwrap();
     assert!(len==contents.len());
     assert_eq!(obj,Object::List(vec![
-        Object::String("print".to_string()),
+        Object::Ident("print"),
         Object::List(vec![
-            Object::String("object".to_string()),
+            Object::Ident("object"),
             Object::List(vec![
-                Object::String("name".to_string()),
+                Object::Ident("name"),
                 Object::String("Clinery".to_string()),
             ]),
             Object::List(vec![
-                Object::String("years_experience".to_string()),
+                Object::Ident("years_experience"),
                 Object::Number("6"),
             ]),
         ]),
