@@ -38,7 +38,7 @@ impl<'input> Object<'input> {
     /// Returns the amount of characters used on success.
     pub fn from_str_inner(s:&'input str,index_start:usize)->Result<(Self,usize),Error> {
         let mut indices=s.char_indices().peekable();
-        let state;
+        let mut state;
         let mut start;
         let mut count=0;
         let mut in_comment=false;
@@ -53,7 +53,7 @@ impl<'input> Object<'input> {
                 }
             } else {
                 match c {
-                    '0'..='9'=>{
+                    '0'..='9'|'-'=>{
                         state=State::Number;
                         break;
                     },
@@ -75,97 +75,108 @@ impl<'input> Object<'input> {
                 }
             }
         }
-        match state {
-            State::Number=>{
-                let mut end=start;
-                for (idx,c) in indices {
-                    end=idx;
-                    match c {
-                        '0'..='9'|'_'|'.'=>{},
-                        _=>break,
+        loop {
+            match state {
+                State::Number=>{
+                    let mut end=start;
+                    if let Some((_,c))=indices.peek() {
+                        match c {
+                            '0'..='9'=>{},
+                            _=>{
+                                state=State::Ident;
+                                continue;
+                            },
+                        }
                     }
-                    count+=1;
-                }
-                return Ok((Object::Number(&s[start..end]),count));
-            },
-            State::List=>{
-                let mut items=Vec::new();
-                let mut good=false;
-                while let Some((idx,c))=indices.next() {
-                    match c {
-                        ')'=>{
-                            good=true;
-                            count+=1;
-                            break;
-                        },
-                        ' '|'\t'|'\r'|'\n'=>count+=1,
-                        _=>{
-                            let (obj,len)=Object::from_str_inner(&s[idx..],index_start+count)?;
-                            items.push(obj);
-                            count+=len;
-                            while let Some((idx,_))=indices.peek() {
-                                if *idx==count {
-                                    break;
-                                } else {
-                                    indices.next();
+                    for (idx,c) in indices {
+                        end=idx;
+                        match c {
+                            '0'..='9'|'_'|'.'=>{},
+                            _=>break,
+                        }
+                        count+=1;
+                    }
+                    return Ok((Object::Number(&s[start..end]),count));
+                },
+                State::List=>{
+                    let mut items=Vec::new();
+                    let mut good=false;
+                    while let Some((idx,c))=indices.next() {
+                        match c {
+                            ')'=>{
+                                good=true;
+                                count+=1;
+                                break;
+                            },
+                            ' '|'\t'|'\r'|'\n'=>count+=1,
+                            _=>{
+                                let (obj,len)=Object::from_str_inner(&s[idx..],index_start+count)?;
+                                items.push(obj);
+                                count+=len;
+                                while let Some((idx,_))=indices.peek() {
+                                    if *idx==count {
+                                        break;
+                                    } else {
+                                        indices.next();
+                                    }
                                 }
-                            }
-                        },
+                            },
+                        }
                     }
-                }
-                if !good {
-                    return Err(Error{index:index_start+count,err:ObjectParseError::NoClosingParen});
-                }
-                if items.len()==1 {
-                    return Ok((items.pop().unwrap(),count));
-                } else {
-                    return Ok((Object::List(items),count));
-                }
-            },
-            State::String=>{
-                let mut s=String::new();
-                let mut escape=false;
-                let mut good=false;
-                for (_,c) in indices {
-                    count+=1;
-                    match c {
-                        '\\'=>{
-                            if escape {
-                                s.push('\\');
-                                escape=false;
-                            } else {
-                                escape=true;
-                            }
-                        },
-                        'n' if escape=>{s.push('\n');escape=false},
-                        'r' if escape=>{s.push('\r');escape=false},
-                        '"' if escape=>{s.push('"');escape=false},
-                        't' if escape=>{s.push('t');escape=false},
-                        '0' if escape=>{s.push('\0');escape=false},
-                        '"' if !escape=>{
-                            good=true;
-                            break;
-                        },
-                        _=>{s.push(c);escape=false},
+                    if !good {
+                        return Err(Error{index:index_start+count,err:ObjectParseError::NoClosingParen});
                     }
-                }
-                if !good {
-                    return Err(Error{index:index_start+count,err:ObjectParseError::NoClosingParen});
-                }
-                return Ok((Object::String(s),count));
-            },
-            State::Ident=>{
-                let mut end=start;
-                for (idx,c) in indices {
-                    end=idx;
-                    match c {
-                        ' '|'\r'|'\n'|'\t'|'('|')'|'"'=>break,
-                        _=>{},
+                    if items.len()==1 {
+                        return Ok((items.pop().unwrap(),count));
+                    } else {
+                        return Ok((Object::List(items),count));
                     }
-                    count+=1;
-                }
-                return Ok((Object::Ident(&s[start..end]),count));
-            },
+                },
+                State::String=>{
+                    let mut s=String::new();
+                    let mut escape=false;
+                    let mut good=false;
+                    for (_,c) in indices {
+                        count+=1;
+                        match c {
+                            '\\'=>{
+                                if escape {
+                                    s.push('\\');
+                                    escape=false;
+                                } else {
+                                    escape=true;
+                                }
+                            },
+                            'n' if escape=>{s.push('\n');escape=false},
+                            'r' if escape=>{s.push('\r');escape=false},
+                            '"' if escape=>{s.push('"');escape=false},
+                            't' if escape=>{s.push('t');escape=false},
+                            '0' if escape=>{s.push('\0');escape=false},
+                            '"' if !escape=>{
+                                good=true;
+                                break;
+                            },
+                            _=>{s.push(c);escape=false},
+                        }
+                    }
+                    if !good {
+                        return Err(Error{index:index_start+count,err:ObjectParseError::NoClosingParen});
+                    }
+                    return Ok((Object::String(s),count));
+                },
+                State::Ident=>{
+                    let mut end=start;
+                    for (idx,c) in indices {
+                        end=idx;
+                        match c {
+                            ' '|'\r'|'\n'|'\t'|'('|')'|'"'=>break,
+                            _=>{},
+                        }
+                        count+=1;
+                    }
+                    return Ok((Object::Ident(&s[start..end]),count));
+                },
+            }
         }
     }
     #[inline]
