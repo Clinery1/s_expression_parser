@@ -141,6 +141,7 @@ impl<'input> Object<'input> {
                         'r' if escape=>{s.push('\r');escape=false},
                         '"' if escape=>{s.push('"');escape=false},
                         't' if escape=>{s.push('t');escape=false},
+                        '0' if escape=>{s.push('\0');escape=false},
                         '"' if !escape=>{
                             good=true;
                             break;
