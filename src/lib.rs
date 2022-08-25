@@ -79,9 +79,13 @@ impl<'input> Object<'input> {
             match state {
                 State::Number=>{
                     let mut end=start;
-                    if let Some((_,c))=indices.peek() {
+                    if let Some((idx,c))=indices.peek() {
+                        end=*idx;
                         match c {
                             '0'..='9'=>{},
+                            '('|')'|' '|'\t'|'\r'|'\n'=>{
+                                return Ok((Object::Number(&s[start..end]),count));
+                            },
                             _=>{
                                 state=State::Ident;
                                 continue;
