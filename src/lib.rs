@@ -130,11 +130,7 @@ impl<'input> Object<'input> {
                     if !good {
                         return Err(Error{index:index_start+count,err:ObjectParseError::NoClosingParen});
                     }
-                    if items.len()==1 {
-                        return Ok((items.pop().unwrap(),count));
-                    } else {
-                        return Ok((Object::List(items),count));
-                    }
+                    return Ok((Object::List(items),count));
                 },
                 State::String=>{
                     let mut s=String::new();
