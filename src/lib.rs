@@ -42,6 +42,7 @@ impl<'input> Object<'input> {
         let mut start;
         let mut count=0;
         let mut in_comment=false;
+        let mut negative=false;
         loop {
             let (idx,c)=indices.next().ok_or(Error{index:index_start+count,err:NO_DATA})?;
             count+=1;
@@ -53,7 +54,12 @@ impl<'input> Object<'input> {
                 }
             } else {
                 match c {
-                    '0'..='9'|'-'=>{
+                    '-'=>{
+                        state=State::Number;
+                        negative=true;
+                        break;
+                    },
+                    '0'..='9'=>{
                         state=State::Number;
                         break;
                     },
@@ -84,7 +90,12 @@ impl<'input> Object<'input> {
                         match c {
                             '0'..='9'=>{},
                             '('|')'|' '|'\t'|'\r'|'\n'=>{
-                                return Ok((Object::Number(&s[start..end]),count));
+                                if negative {
+                                    state=State::Ident;
+                                    continue;
+                                } else {
+                                    return Ok((Object::Number(&s[start..end]),count));
+                                }
                             },
                             _=>{
                                 state=State::Ident;
