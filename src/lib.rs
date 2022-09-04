@@ -1,3 +1,11 @@
+use std::fmt::{
+    Display,
+    Debug,
+    Formatter,
+    Result as FmtResult,
+};
+
+
 #[cfg(test)]
 mod tests;
 
@@ -18,14 +26,106 @@ pub enum ObjectParseError {
     NoData,
     ExtraClosingParen,
 }
-#[derive(Debug,PartialEq,Clone)]
+#[derive(PartialEq,Clone)]
 pub enum Object<'input> {
     List(Location,Vec<Self>,Location),
     String(Location,String,Location),
     Ident(Location,&'input str,Location),
     Number(Location,&'input str,Location),
 }
+impl<'input> Display for Object<'input> {
+    fn fmt(&self,f:&mut Formatter)->FmtResult {
+        use Object::*;
+        if let Some(width)=f.width() {
+            for _ in 0..width {
+                f.write_str(" ")?;
+            }
+        }
+        match self {
+            List(_,items,_)=>{
+                match items.len() {
+                    0=>write!(f,"()")?,
+                    1=>write!(f,"({})",items[0])?,
+                    2 if !items[1].is_list()=>write!(f,"({} {})",items[0],items[1])?,
+                    _=>{
+                        writeln!(f,"({}",items[0])?;
+                        let last=items.len()-1;
+                        for (i,item) in items.iter().enumerate().skip(1) {
+                            let mut width=4;
+                            if let Some(f_width)=f.width() {
+                                width+=f_width;
+                            }
+                            write!(f,"{:1$}",item,width)?;
+                            if i!=last {
+                                writeln!(f)?;
+                            }
+                        }
+                        write!(f,")")?;
+                    },
+                }
+            },
+            Ident(_,s,_)|Number(_,s,_)=>f.write_str(s)?,
+            String(_,s,_)=>write!(f,"{:?}",s)?,
+        }
+        return Ok(());
+    }
+}
+impl<'input> Debug for Object<'input> {
+    fn fmt(&self,f:&mut Formatter)->FmtResult {
+        use Object::*;
+        if f.alternate() {
+            if let Some(width)=f.width() {
+                for _ in 0..width {
+                    f.write_str(" ")?;
+                }
+            }
+        }
+        match self {
+            List(_,items,_)=>{
+                if f.alternate() {
+                    writeln!(f,"List([")?;
+                } else {
+                    write!(f,"List([")?;
+                }
+                let last=items.len()-1;
+                for (i,item) in items.iter().enumerate() {
+                    if f.alternate() {
+                        let mut width=4;
+                        if let Some(f_width)=f.width() {
+                            width+=f_width;
+                            for _ in 0..f_width {
+                                f.write_str(" ")?;
+                            }
+                        }
+                        write!(f,"{:#1$?}",item,width)?;
+                        if i!=last {
+                            writeln!(f,",")?;
+                        } else {
+                            writeln!(f)?;
+                        }
+                    } else {
+                        write!(f,"{:?}",item)?;
+                        if i!=last {
+                            write!(f,",")?;
+                        }
+                    }
+                }
+                write!(f,"])")?;
+            },
+            Ident(_,s,_)=>write!(f,"Ident({})",s)?,
+            Number(_,s,_)=>write!(f,"Number({})",s)?,
+            String(_,s,_)=>write!(f,"String({:?})",s)?,
+        }
+        return Ok(());
+    }
+}
 impl<'input> Object<'input> {
+    pub fn is_list(&self)->bool {
+        match self {
+            Self::List(..)=>true,
+            _=>false,
+        }
+    }
     pub fn str_data(&self)->Option<&str> {
         match self {
             Self::List(..)=>None,
