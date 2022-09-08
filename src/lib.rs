@@ -10,6 +10,13 @@ use std::fmt::{
 mod tests;
 
 
+macro_rules! terminals {
+    ()=>{
+        '('|')'|' '|'\t'|'\r'|'\n'|'"'
+    };
+}
+
+
 const NO_DATA:ObjectParseError=ObjectParseError::NoData;
 
 
@@ -192,7 +199,7 @@ impl<'input> Object<'input> {
                 }
             }
         }
-        loop {
+        'main:loop {
             match state {
                 State::Number=>{
                     let mut end=start;
@@ -200,7 +207,7 @@ impl<'input> Object<'input> {
                         end=*idx;
                         match c {
                             '0'..='9'=>{},
-                            '('|')'|' '|'\t'|'\r'|'\n'=>{
+                            terminals!()=>{
                                 if negative {
                                     state=State::Ident;
                                     continue;
@@ -214,11 +221,15 @@ impl<'input> Object<'input> {
                             },
                         }
                     }
-                    for (idx,c) in indices {
+                    while let Some((idx,c))=indices.next() {
                         end=idx;
                         match c {
                             '0'..='9'|'_'|'.'=>{},
-                            _=>break,
+                            terminals!()=>break,
+                            _=>{
+                                state=State::Ident;
+                                continue 'main;
+                            },
                         }
                         location.index+=1;
                         location.column+=1;
@@ -320,7 +331,7 @@ impl<'input> Object<'input> {
                     for (idx,c) in indices {
                         end=idx;
                         match c {
-                            ' '|'\r'|'\n'|'\t'|'('|')'|'"'=>break,
+                            terminals!()=>break,
                             _=>{},
                         }
                         count+=1;
