@@ -224,16 +224,20 @@ impl<'input> Object<'input> {
                     while let Some((idx,c))=indices.next() {
                         end=idx;
                         match c {
-                            '0'..='9'|'_'|'.'=>{},
                             terminals!()=>break,
+                            '0'..='9'|'_'|'.'=>{
+                                location.index+=1;
+                                location.column+=1;
+                                count+=1;
+                            },
                             _=>{
+                                location.index+=1;
+                                location.column+=1;
+                                count+=1;
                                 state=State::Ident;
                                 continue 'main;
                             },
                         }
-                        location.index+=1;
-                        location.column+=1;
-                        count+=1;
                     }
                     return Ok((Object::Number(start_loc,&s[start..end],*location),count));
                 },
